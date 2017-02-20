@@ -1,0 +1,291 @@
+
+application:
+  title: Loc8 dot Space
+  theme: bootswatch-superhero
+  collections:
+    - name: notes
+      before_insert_code: >-
+        doc.name = Meteor.user() ? Meteor.user().profile.name : 'Anonymous';
+        return doc;
+      owner_field: createdBy
+      roles_allowed_to_read: []
+      roles_allowed_to_insert: []
+      roles_allowed_to_update:
+        - owner
+      roles_allowed_to_delete:
+        - owner
+    - name: files
+      type: file_collection
+      storage_adapters:
+        - gridfs
+    - name: gallery
+      type: collection
+      fields:
+	- name: title
+          title: Title
+          required: true
+        - name: tag
+          title: Tag
+          required: true
+        - name: fileId
+          title: File
+          input: file
+          file_collection: files
+          file_container: file
+  queries:
+    - name: notes
+      collection: notes
+      find_one: false
+      filter: '{}'
+      options: '{ "sort": { "createdAt": -1 } }'
+    - name: notes_empty
+      collection: notes
+      find_one: true
+      filter: '{ "_id": null }'
+      options: '{}'
+    - name: current_user_sources
+      collection: users
+      filter: '{ "_id": "Meteor.userID()" }'
+      options: '{}'
+      find_one: true
+    - name: current_user_data
+      collection: users
+      filter: '{ "_id": "Meteor.userId()" }'
+      options: '{}'
+      find_one: true
+    - name: gallery
+      collection: gallery
+      filter: '{}'
+      options: '{}'
+    - name: gallery_empty
+      collection: gallery
+      filter: '{ "_id": null }'
+      options: '{}'
+      find_one: true
+  free_zone:
+    pages:
+      - name: home_free
+        text: >-
+          <h5>Share art to be associated with a location</h5><h4>private/public/team
+          </h4>
+        components:
+          - name: photo_button
+            html: |
+              <template name="TEMPLATE_NAME">
+                <p style="margin: 20px 0;">
+                  <button type="button" id="take-photo" class="btn btn-danger">
+                    <span class="fa fa-camera"></span>
+                    Take a photo and share it!
+                  </button>
+                </p>
+              </template>
+            js: |+
+              var cameraOptions = {
+                width: 800,
+                height: 600
+              };
+
+              Template.TEMPLATE_NAME.events({
+                "click #take-photo": function(e, t) {
+                  MeteorCamera.getPicture(cameraOptions, function (error, data) {
+                    Session.set("photo", data);
+                    if (error) {
+                      // e.g. camera permission denied, or unsupported browser (Safari on iOS, looking at you)
+                      console.log(error);
+                    } else {
+                      Notes.insert({
+                        photo: data
+                      });
+                    }
+                  });
+
+                }
+              });
+
+            type: custom_component
+          - name: form
+            mode: insert
+            submit_route: home_free
+            type: form
+            query_name: notes_empty
+            fields:
+              - name: text
+                title: 'Or enter a note:'
+                type: string
+                required: true
+                input: textarea
+          - name: notes
+            html: "<template name=\"TEMPLATE_NAME\">\n  {{#each notes}}\n\t<div class=\"panel\" style=\"padding: 0 10px;\">\n	   {{#if photo}}\n        <img src=\"{{photo}}\" alt=\"Loading image...\" style=\"margin-top: 10px; width: 100%; height: auto\">\n	{{else}}\n        <p>{{text}}</p>\n	 {{/if}}\n	<p class=\"text-muted\">{{name}}, {{livestamp createdAt}}</p>\n    </div>\n  {{/each}}\n</template>"
+            type: custom_component
+            query_name: notes
+  public_zone:
+    navbar_class: navbar-inverse navbar-fixed-top
+    pages:
+      - name: home_gal
+        components:
+          - name: gallery
+            title: AR Gallery
+            type: custom_component
+            custom_template: files/gallery
+            query_name: gallery
+        pages:
+      - name: login
+        template: login
+      - name: register
+        template: register
+      - name: forgot_password
+        template: forgot_password
+      - name: reset_password
+        template: reset_password
+        route_params:
+          - resetPasswordToken
+      - name: insert
+        components:
+          - name: form
+            title: Add new file
+            type: form
+            mode: insert
+            query_name: gallery_empty
+            submit_route: home_gal
+            cancel_route: home_gal
+    components:
+      - name: left_menu
+        type: menu
+        class: nav navbar-nav
+        dest_selector: '#menu'
+        items:
+          - title: Home
+            route: home_free
+          - title: Create
+            route: insert
+          - title: Gallery
+            route: home_gal
+      - name: right_menu
+        type: menu
+        class: nav navbar-nav navbar-right
+        dest_selector: '#menu'
+        items:
+          - title: Register
+            route: register
+          - title: Login
+            route: login
+  private_zone:
+    navbar_class: navbar-default navbar-fixed-top
+    pages:
+      - name: location_settings
+        pages:
+          - name: location
+            components:
+              - name: edit_form
+                type: form
+                mode: update
+                title: Edit your settings
+                submit_route: user_settings.location
+                query_name: current_user_data
+                fields:
+                  - name: location.map1
+                    title: Map1
+                    required: true
+                    type: map
+      - name: user_settings
+        pages:
+          - name: profile
+            components:
+              - name: edit_form
+                type: form
+                mode: update
+                title: Edit your settings
+                submit_route: user_settings.profile
+                query_name: current_user_data
+                fields:
+                  - name: profile.name
+                    title: Name
+                    required: true
+                    type: string
+                  - name: profile.email
+                    title: E-mail
+                    type: email
+                    required: true
+                  - name: profile.facebook
+                    title: Facebook URL
+                    type: string
+                  - name: profile.google
+                    title: Google+ URL
+                    type: string
+                  - name: profile.twitter
+                    title: Twitter ID
+                    type: string
+                  - name: profile.tumblr
+                    title: Tumblr URL
+                    type: string
+                  - name: profile.instagram
+                    title: Instagram ID
+                    type: string
+                  - name: profile.pinterest
+                    title: Pinterest ID
+                    type: string
+                  - name: profile.website
+                    title: Website URL
+                    type: string
+              - name: vid_form
+                type: form
+                mode: update
+                title: Your Linked File Storage
+                submit_route: user_settings.profile
+                query_name: current_user_data
+                fields:
+                  - name: profile.vimeo
+                    title: Vimeo
+                    type: string
+                  - name: profile.dropbox
+                    title: Dropbox
+                    type: string
+                  - name: profile.gdrive
+                    title: Google Drive
+                    type: string
+                  - name: profile.mixcloud
+                    title: Mixcloud
+                    type: string
+                  - name: profile.soundcloud
+                    title: Soundcloud
+                    type: string
+          - name: change_pass
+            template: change_pass
+        components:
+          - name: side_menu
+            type: menu
+            class: nav nav-stacked nav-pills
+            items:
+              - title: Profile
+                route: user_settings.profile
+              - title: Change password
+                route: user_settings.change_pass
+      - name: logout
+        template: logout
+    components:
+      - name: left_menu
+        type: menu
+        class: nav navbar-nav
+        dest_selector: '#menu'
+        items:
+          - title: Home
+            route: home_free
+      - name: right_menu
+        type: menu
+        class: nav navbar-nav navbar-right
+        dest_selector: '#menu'
+        items:
+          - title: '{{userEmail}}'
+            items:
+              - title: Settings
+                route: user_settings
+              - title: Locations
+                route: location_settings
+              - title: Art
+                route: art_settings
+              - title: Logout
+                route: logout
+  login_with_google: true
+  login_with_github: true
+  login_with_linkedin: true
+  login_with_facebook: true
